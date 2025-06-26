@@ -39,6 +39,7 @@ int main(int argc, const char **argv)
 
   RCLCPP_INFO_STREAM(node->get_logger(), "Initializing mujoco_ros2_control node...");
   auto model_path = node->get_parameter("mujoco_model_path").as_string();
+  std::string key_name = node->get_parameter("home_key_name").as_string();
 
   // load and compile model
   char error[1000] = "Could not load binary model";
@@ -60,6 +61,20 @@ int main(int argc, const char **argv)
   RCLCPP_INFO_STREAM(node->get_logger(), "Mujoco model has been successfully loaded !");
   // make data
   mujoco_data = mj_makeData(mujoco_model);
+
+  // set key frame
+  if (!key_name.empty()) {
+    RCLCPP_INFO(node->get_logger(), "Found 'home_key_name' parameter: '%s'. Attempting to set initial pose.", key_name.c_str());
+    int key_id = mj_name2id(mujoco_model, mjOBJ_KEY, key_name.c_str());
+
+    if (key_id != -1) {
+      mju_copy(mujoco_data->qpos, mujoco_model->key_qpos + key_id * mujoco_model->nq, mujoco_model->nq);
+      mj_forward(mujoco_model, mujoco_data);
+      RCLCPP_INFO(node->get_logger(), "Successfully set simulation state to keyframe '%s'.", key_name.c_str());
+    } else {
+      RCLCPP_WARN(node->get_logger(), "Keyframe '%s' not found in MuJoCo model. Starting at default pose.", key_name.c_str());
+    }
+  }
 
   // initialize mujoco control
   auto mujoco_control = mujoco_ros2_control::MujocoRos2Control(node, mujoco_model, mujoco_data);
