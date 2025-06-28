@@ -39,7 +39,10 @@ int main(int argc, const char **argv)
 
   RCLCPP_INFO_STREAM(node->get_logger(), "Initializing mujoco_ros2_control node...");
   auto model_path = node->get_parameter("mujoco_model_path").as_string();
-  std::string key_name = node->get_parameter("home_key_name").as_string();
+
+  if (!node->has_parameter("home_key_name")) {
+    node->declare_parameter("home_key_name", "");
+  }
 
   // load and compile model
   char error[1000] = "Could not load binary model";
@@ -63,6 +66,7 @@ int main(int argc, const char **argv)
   mujoco_data = mj_makeData(mujoco_model);
 
   // set key frame
+  std::string key_name = node->get_parameter("home_key_name").as_string();
   if (!key_name.empty()) {
     RCLCPP_INFO(node->get_logger(), "Found 'home_key_name' parameter: '%s'. Attempting to set initial pose.", key_name.c_str());
     int key_id = mj_name2id(mujoco_model, mjOBJ_KEY, key_name.c_str());
